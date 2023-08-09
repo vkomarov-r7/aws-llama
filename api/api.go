@@ -2,10 +2,12 @@ package api
 
 import (
 	"aws-llama/config"
+	"aws-llama/credentials"
 	"aws-llama/saml"
 	"encoding/base64"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -15,8 +17,21 @@ type SAMLResponseBody struct {
 	RelayState   string `json:"RelayState"`
 }
 
+type CredentialSummary struct {
+	AccountId  string
+	Expiration *time.Time
+}
+
 func routeIndex(c *gin.Context) {
-	c.JSON(200, gin.H{"hello": "world"})
+	var summaries []CredentialSummary
+	for _, entry := range credentials.CredentialStore.Entries {
+		summary := CredentialSummary{
+			AccountId:  entry.AccountId,
+			Expiration: &entry.Expiration,
+		}
+		summaries = append(summaries, summary)
+	}
+	c.JSON(200, gin.H{"credentials": summaries})
 }
 
 func routeLogin(c *gin.Context) {
@@ -30,15 +45,12 @@ func routeLogin(c *gin.Context) {
 	middleware, err := saml.MiddlewareForURL(metadataURLRaw)
 	if err != nil {
 		c.JSON(400, gin.H{"error": fmt.Sprintf("Failed to retrieve middleware for url: %s. %s", metadataURLRaw, err.Error())})
-
 	}
 	redirectURL, err := saml.MakeRedirectUrl(middleware, metadataURLRaw)
 	if err != nil {
 		c.JSON(400, gin.H{"error": "Failed to build a SAML instance. " + err.Error()})
 		return
 	}
-
-	fmt.Printf("Redirect URL: %s", redirectURL)
 
 	c.Redirect(http.StatusFound, redirectURL.String())
 }
@@ -78,20 +90,30 @@ func routeSAML(c *gin.Context) {
 		return
 	}
 
-	fmt.Printf("Got pairs from saml callback: %+v", pairs)
 	for _, pair := range pairs {
-		credentials, err := saml.AssumeRoleWithSAML(pair.ProviderARN, pair.RoleARN, samlResponse.SAMLResponse)
+		fmt.Printf("Processing pair from response: %+v\n", pair)
+		credsResponse, err := saml.AssumeRoleWithSAML(pair.ProviderARN, pair.RoleARN, samlResponse.SAMLResponse)
 		if err != nil {
 			c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to assume role: %s. %s", pair.RoleARN, err.Error())})
 			return
 		}
-		fmt.Printf("Got credentials after saml response: %+v", credentials)
+		fmt.Printf("Got credentials after saml response: %+v", credsResponse)
+
+		credentialEntry, err := credentials.AWSCredentialEntryFromOutput(credsResponse)
+		if err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+		credentials.CredentialStore.UpsertEntry(*credentialEntry)
 	}
-	c.JSON(200, gin.H{"msg": "Thanks!"})
+
+	credentials.StoreCredentials(credentials.CredentialStore.Entries)
+	c.Redirect(302, "/")
 }
 
 func CreateGinWebserver() *gin.Engine {
 	r := gin.Default()
+	r.SetTrustedProxies(nil)
 	r.GET("/", routeIndex)
 	r.GET("/login", routeLogin)
 	r.POST("/sso/saml", routeSAML)

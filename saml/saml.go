@@ -126,7 +126,7 @@ func MiddlewareForURL(metadataURL string) (*samlsp.Middleware, error) {
 		IDPMetadata:       metadata,
 		AllowIDPInitiated: true, // Prevent request tracking validation.
 	})
-	// Reconfigure AcsURL to pass validation checks.
+	// Reconfigure to pass validation checks.
 	middleware.ServiceProvider.AcsURL = *middleware.ServiceProvider.AcsURL.ResolveReference(&url.URL{Path: "/sso/saml"})
 	middleware.ServiceProvider.MetadataURL = *middleware.ServiceProvider.MetadataURL.ResolveReference(&url.URL{Path: "/sso/saml"})
 	if err != nil {
