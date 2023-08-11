@@ -116,13 +116,8 @@ func MiddlewareForURL(metadataURL string) (*samlsp.Middleware, error) {
 		return nil, err
 	}
 
-	rootURL, err := url.Parse(config.ROOT_URL_RAW)
-	if err != nil {
-		return nil, err
-	}
-
 	middleware, err = samlsp.New(samlsp.Options{
-		URL:               *rootURL,
+		URL:               *config.CurrentConfig.RootUrl,
 		IDPMetadata:       metadata,
 		AllowIDPInitiated: true, // Prevent request tracking validation.
 	})

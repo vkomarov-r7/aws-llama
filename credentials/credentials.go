@@ -30,7 +30,7 @@ type AWSCredentialEntry struct {
 	Expiration time.Time
 }
 
-func AWSCredentialEntryFromOutput(output *sts.AssumeRoleWithSAMLOutput) (*AWSCredentialEntry, error) {
+func AWSCredentialEntryFromOutput(output *sts.AssumeRoleWithSAMLOutput, metadataURL string) (*AWSCredentialEntry, error) {
 	accountId, err := ExtractAccountIdFromARN(*output.AssumedRoleUser.Arn)
 	if err != nil {
 		return nil, err
@@ -42,6 +42,8 @@ func AWSCredentialEntryFromOutput(output *sts.AssumeRoleWithSAMLOutput) (*AWSCre
 			SecretAccessKey: *output.Credentials.SecretAccessKey,
 			SessionToken:    *output.Credentials.SessionToken,
 		},
+		MetadataURL: metadataURL,
+		Expiration:  *output.Credentials.Expiration,
 	}
 	return &credentialEntry, nil
 }

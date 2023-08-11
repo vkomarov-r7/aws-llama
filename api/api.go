@@ -1,12 +1,13 @@
 package api
 
 import (
-	"aws-llama/config"
 	"aws-llama/credentials"
+	"aws-llama/log"
 	"aws-llama/saml"
 	"encoding/base64"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -37,9 +38,13 @@ func routeIndex(c *gin.Context) {
 func routeLogin(c *gin.Context) {
 	metadataURLRaw := c.Query("metadata_url")
 	if metadataURLRaw == "" {
-		metadataURLRaw = config.GetMetadataUrls()[0]
-		// c.JSON(400, gin.H{"error": "Must specify the 'metadata_url' as a query string for this path."})
-		// return
+		metadataURLRaw = credentials.NextMetadataURLForRefresh()
+	}
+
+	// Nothing to do if nothing needs refreshing.
+	if metadataURLRaw == "" {
+		c.Redirect(http.StatusFound, "/")
+		return
 	}
 
 	middleware, err := saml.MiddlewareForURL(metadataURLRaw)
@@ -62,15 +67,13 @@ func routeSAML(c *gin.Context) {
 		c.JSON(400, gin.H{"error": "Failed to bind body. " + err.Error()})
 		return
 	}
-
-	fmt.Printf("Response Body after login: %+v", samlResponse)
+	// log.Logger.Debug("Response Body after login", "samlResponse", samlResponse)
 
 	rawResponseBuf, err := base64.StdEncoding.DecodeString(samlResponse.SAMLResponse)
 	if err != nil {
 		c.JSON(400, gin.H{"error": "Failed to decode SAMLResponse from POST body. " + err.Error()})
 		return
 	}
-	fmt.Printf("Decoded response body after SAML Assertion: %s", rawResponseBuf)
 
 	middleware, err := saml.MiddlewareForURL(samlResponse.RelayState)
 	if err != nil {
@@ -97,9 +100,9 @@ func routeSAML(c *gin.Context) {
 			c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to assume role: %s. %s", pair.RoleARN, err.Error())})
 			return
 		}
-		fmt.Printf("Got credentials after saml response: %+v", credsResponse)
+		log.Logger.Debug("Got credentials after saml response", credsResponse)
 
-		credentialEntry, err := credentials.AWSCredentialEntryFromOutput(credsResponse)
+		credentialEntry, err := credentials.AWSCredentialEntryFromOutput(credsResponse, samlResponse.RelayState)
 		if err != nil {
 			c.JSON(500, gin.H{"error": err.Error()})
 			return
@@ -108,6 +111,13 @@ func routeSAML(c *gin.Context) {
 	}
 
 	credentials.StoreCredentials(credentials.CredentialStore.Entries)
+
+	// Check to see if there's any other credentials that need to be fetched and do so.
+	metadataURL := credentials.NextMetadataURLForRefresh()
+	if metadataURL != "" {
+		c.Redirect(302, "/login?metadata_url="+url.QueryEscape(metadataURL))
+		return
+	}
 	c.Redirect(302, "/")
 }
 

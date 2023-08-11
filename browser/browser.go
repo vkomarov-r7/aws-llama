@@ -4,7 +4,6 @@ import (
 	"aws-llama/config"
 	"fmt"
 	"net/url"
-	"time"
 
 	"github.com/playwright-community/playwright-go"
 )
@@ -14,6 +13,7 @@ func ensurePage(context playwright.BrowserContext) (playwright.Page, error) {
 	if len(pages) > 0 {
 		return pages[0], nil
 	}
+	fmt.Printf("Current number of pages: %d\n", len(pages))
 
 	page, err := context.NewPage()
 	return page, err
@@ -21,7 +21,7 @@ func ensurePage(context playwright.BrowserContext) (playwright.Page, error) {
 
 func Authenticate(headless bool) error {
 	runOptions := playwright.RunOptions{
-		Browsers: []string{"chromium"},
+		SkipInstallBrowsers: true,
 	}
 	err := playwright.Install(&runOptions)
 	if err != nil {
@@ -34,15 +34,17 @@ func Authenticate(headless bool) error {
 	}
 	defer pw.Stop()
 
-	loginPath, err := url.JoinPath(config.ROOT_URL_RAW, "/login")
+	loginPath, err := url.JoinPath(config.CurrentConfig.RootUrl.String(), "/login")
 	if err != nil {
 		return err
 	}
 
 	opts := playwright.BrowserTypeLaunchPersistentContextOptions{
 		Headless: &headless,
+		Channel:  playwright.String("chrome"),
 	}
-	browserCtx, err := pw.Chromium.LaunchPersistentContext("./chromium-context", opts)
+
+	browserCtx, err := pw.Chromium.LaunchPersistentContext(config.CurrentConfig.ChromeUserDataDir, opts)
 	if err != nil {
 		return err
 	}
@@ -51,12 +53,23 @@ func Authenticate(headless bool) error {
 	if err != nil {
 		return err
 	}
-	response, err := page.Goto(loginPath)
+	_, err = page.Goto(loginPath, playwright.PageGotoOptions{WaitUntil: playwright.WaitUntilStateDomcontentloaded})
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Browser Response: %+v\n", response)
 
-	time.Sleep(600 * time.Second)
+	// page.WaitForTimeout(15 * 1000)
+	fmt.Printf("Current URL: %s\n", page.URL())
+	fmt.Printf("Waiting for response..\n")
+	err = page.WaitForURL("http://localhost:2600/")
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Finished waiting for response, closing stuff out..\n")
+	page.Close()
+	browserCtx.Close()
+
+	// time.Sleep(600 * time.Second)
+	fmt.Printf("Finished authing. Toodles!\n")
 	return nil
 }
