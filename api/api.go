@@ -129,3 +129,8 @@ func CreateGinWebserver() *gin.Engine {
 	r.POST("/sso/saml", routeSAML)
 	return r
 }
+
+func RunWebserver() {
+	r := CreateGinWebserver()
+	r.Run("127.0.0.1:2600")
+}
