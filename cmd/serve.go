@@ -3,6 +3,7 @@ package cmd
 import (
 	"aws-llama/api"
 	"aws-llama/browser"
+	"aws-llama/log"
 
 	"github.com/spf13/cobra"
 )
@@ -13,8 +14,10 @@ var serveCmd = &cobra.Command{
 	Short: "Start the main webserver instance responsible for refreshing credentials",
 	Long:  `Start the main webserver instance responsible for refreshing credentials`,
 	Run: func(cmd *cobra.Command, args []string) {
+		log.Logger.Debug("Starting webserver!")
 		go api.RunWebserver()
 
+		log.Logger.Debug("Starting auth loop!")
 		browser.AuthenticationLoop()
 	},
 }

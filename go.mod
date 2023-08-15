@@ -7,6 +7,8 @@ require (
 	github.com/crewjam/saml v0.4.13
 	github.com/gin-gonic/gin v1.9.1
 	github.com/playwright-community/playwright-go v0.3500.0
+	github.com/spf13/cobra v1.7.0
+	go.uber.org/zap v1.25.0
 	gopkg.in/ini.v1 v1.67.0
 )
 
@@ -38,12 +40,10 @@ require (
 	github.com/pelletier/go-toml/v2 v2.0.8 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/russellhaering/goxmldsig v1.2.0 // indirect
-	github.com/spf13/cobra v1.7.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.11 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	go.uber.org/zap v1.25.0 // indirect
 	golang.org/x/arch v0.3.0 // indirect
 	golang.org/x/crypto v0.9.0 // indirect
 	golang.org/x/net v0.10.0 // indirect
