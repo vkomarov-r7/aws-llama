@@ -1,11 +1,13 @@
 package api
 
 import (
+	"aws-llama/config"
 	"aws-llama/credentials"
 	"aws-llama/log"
 	"aws-llama/saml"
 	"encoding/base64"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"time"
@@ -130,7 +132,22 @@ func CreateGinWebserver() *gin.Engine {
 	return r
 }
 
-func RunWebserver() {
-	r := CreateGinWebserver()
-	r.Run("127.0.0.1:2600")
+func RunWebserver(r *gin.Engine) {
+	bind := fmt.Sprintf("127.0.0.1:%d", config.CurrentConfig.ListenPort)
+	r.Run(bind)
+}
+
+func IsWebserverRunning() bool {
+	timeout := time.Second
+	address := fmt.Sprintf("127.0.0.1:%d", config.CurrentConfig.ListenPort)
+	conn, err := net.DialTimeout("tcp", address, timeout)
+	if err != nil {
+		return false
+	}
+	if conn != nil {
+		conn.Close()
+		return true
+	}
+
+	panic("This should never happen (got both error and a connection).")
 }

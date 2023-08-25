@@ -17,6 +17,7 @@ type Config struct {
 	RenewWithinSeconds float64
 	RootUrl            *url.URL
 	ChromeUserDataDir  string
+	ListenPort         int
 }
 
 var CurrentConfig *Config
@@ -59,6 +60,7 @@ func loadConfigFromJSON() (*Config, error) {
 		RootUrl:            rootUrl,
 		RenewWithinSeconds: 15 * 60, // 15 mins.
 		ChromeUserDataDir:  userDataDir,
+		ListenPort:         2600,
 	}
 	if bytes != nil {
 		err = json.Unmarshal(bytes, &config)

@@ -15,7 +15,8 @@ var serveCmd = &cobra.Command{
 	Long:  `Start the main webserver instance responsible for refreshing credentials`,
 	Run: func(cmd *cobra.Command, args []string) {
 		log.Logger.Debug("Starting webserver!")
-		go api.RunWebserver()
+		r := api.CreateGinWebserver()
+		go api.RunWebserver(r)
 
 		log.Logger.Debug("Starting auth loop!")
 		browser.AuthenticationLoop()

@@ -185,14 +185,14 @@ func AuthenticationLoop() {
 	ticker := time.NewTicker(5 * time.Minute)
 
 	// Perform the initial tick.
-	tick()
+	AttemptAuthentication()
 	for {
 		<-ticker.C
-		tick()
+		AttemptAuthentication()
 	}
 }
 
-func tick() {
+func AttemptAuthentication() {
 	metadataURL := credentials.NextMetadataURLForRefresh()
 	if metadataURL != "" {
 		log.Logger.Info("Eligible to authenticate a metadata url. Opening browser")
