@@ -26,6 +26,7 @@ var refreshCmd = &cobra.Command{
 		}
 
 		browser.AttemptAuthentication()
+		log.Logger.Info("Finished one-shot credential refresh. Exiting.")
 	},
 }
 
