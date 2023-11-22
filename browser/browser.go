@@ -105,10 +105,12 @@ func (b *Browser) authenticate(headless bool) (bool, error) {
 		return true, nil
 	}
 
-	log.Logger.Info("Authentication ended up at url (likely needs user input):", url)
+	log.Logger.Info("Authentication ended up at url (likely needs user input): ", url)
 
 	// Wait for 5 minutes for user input if a window is displayed.
 	if !headless {
+		attemptAuth(page)
+
 		log.Logger.Info("Waiting for 5 minutes for user input (headed browser mode)...")
 		waitOpts := playwright.FrameWaitForURLOptions{Timeout: playwright.Float(5 * 60 * 1000)}
 		err := page.WaitForURL("http://localhost:2600/", waitOpts)
@@ -118,6 +120,44 @@ func (b *Browser) authenticate(headless bool) (bool, error) {
 		return true, nil
 	}
 	return false, nil
+}
+
+func attemptAuth(page playwright.Page) error {
+	if !config.CurrentConfig.HasLogin() {
+		log.Logger.Info("Skipping auth attempt. Credentials not configured.")
+		return nil
+	}
+
+	submitBtnLocator := page.Locator("#okta-signin-submit")
+	submitButtonCount, err := submitBtnLocator.Count()
+	if err != nil {
+		return err
+	}
+
+	if submitButtonCount != 1 {
+		log.Logger.Info("Didn't detect a login page. Skipping automated auth attempt.")
+		return nil
+	}
+
+	// Fill in Username and Password
+	usernameField := page.Locator("#okta-signin-username")
+	err = usernameField.Fill(config.CurrentConfig.Username)
+	if err != nil {
+		return err
+	}
+	passwordField := page.Locator("#okta-signin-password")
+	err = passwordField.Fill(config.CurrentConfig.Password)
+	if err != nil {
+		return err
+	}
+
+	// Click the submit button
+	err = submitBtnLocator.Click()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func createPlaywright() (*playwright.Playwright, error) {

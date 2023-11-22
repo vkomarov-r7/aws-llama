@@ -18,6 +18,12 @@ type Config struct {
 	RootUrl            *url.URL
 	ChromeUserDataDir  string
 	ListenPort         int
+	Username           string `json:"username"`
+	Password           string `json:"password"`
+}
+
+func (c *Config) HasLogin() bool {
+	return c.Username != "" && c.Password != ""
 }
 
 var CurrentConfig *Config
