@@ -109,7 +109,10 @@ func (b *Browser) authenticate(headless bool) (bool, error) {
 
 	// Wait for 5 minutes for user input if a window is displayed.
 	if !headless {
-		attemptAuth(page)
+		err = attemptAuth(page)
+		if err != nil {
+			log.Logger.Error("failed to automatically authenticate, reverting to manual mode: %w", err)
+		}
 
 		log.Logger.Info("Waiting for 5 minutes for user input (headed browser mode)...")
 		waitOpts := playwright.PageWaitForURLOptions{Timeout: playwright.Float(5 * 60 * 1000)}
@@ -149,6 +152,15 @@ func attemptAuth(page playwright.Page) error {
 	err = passwordField.Fill(config.CurrentConfig.Password)
 	if err != nil {
 		return fmt.Errorf("failed to fill in password field: %w", err)
+	}
+
+	// Check the "Keep me signed in" box for less refreshing later.
+	rememberMeField := page.Locator("[name=\"rememberMe\"]")
+	n, err := rememberMeField.Count()
+	log.Logger.Info("Number of checkboxes found: %d %w", n, err)
+	err = rememberMeField.Check(playwright.LocatorCheckOptions{Timeout: playwright.Float(5 * 1000), Force: playwright.Bool(true)})
+	if err != nil {
+		return fmt.Errorf("failed to check the 'Keep me signed in' checkbox: %w", err)
 	}
 
 	// Click the submit button
@@ -197,7 +209,7 @@ func (b *Browser) ensureBrowserContext(headless bool) error {
 
 	opts := playwright.BrowserTypeLaunchPersistentContextOptions{
 		Headless: &headless,
-		// Channel:  playwright.String("chrome"),
+		Channel:  playwright.String("chrome"),
 	}
 
 	browserCtx, err := b.playwright.Chromium.LaunchPersistentContext(config.CurrentConfig.ChromeUserDataDir, opts)
