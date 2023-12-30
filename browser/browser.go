@@ -112,7 +112,7 @@ func (b *Browser) authenticate(headless bool) (bool, error) {
 		attemptAuth(page)
 
 		log.Logger.Info("Waiting for 5 minutes for user input (headed browser mode)...")
-		waitOpts := playwright.FrameWaitForURLOptions{Timeout: playwright.Float(5 * 60 * 1000)}
+		waitOpts := playwright.PageWaitForURLOptions{Timeout: playwright.Float(5 * 60 * 1000)}
 		err := page.WaitForURL("http://localhost:2600/", waitOpts)
 		if err != nil {
 			return false, fmt.Errorf("error while waiting for localhost url: %w", err)
@@ -169,12 +169,15 @@ func attemptAuth(page playwright.Page) error {
 
 func createPlaywright() (*playwright.Playwright, error) {
 	runOptions := playwright.RunOptions{
-		SkipInstallBrowsers: true,
+		Browsers: []string{"chromium"},
 	}
+
+	log.Logger.Info("Installing browser if necessary...")
 	err := playwright.Install(&runOptions)
 	if err != nil {
 		return nil, err
 	}
+	log.Logger.Info("Installation completed successfully.")
 
 	pw, err := playwright.Run()
 	if err != nil {
