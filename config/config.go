@@ -84,5 +84,10 @@ func getChromeUserDataDir() (string, error) {
 		return "", err
 	}
 
-	return filepath.Join(homeDir, "Library/Application Support/Google/Chrome"), nil
+	userdir := filepath.Join(homeDir, "Library/Caches/awsllama/chrome")
+	err = os.MkdirAll(userdir, 0700)
+	if err != nil {
+		return "", err
+	}
+	return userdir, nil
 }

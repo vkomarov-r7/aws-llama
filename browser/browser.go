@@ -39,7 +39,7 @@ func NewBrowser() (*Browser, error) {
 func (b *Browser) Authenticate() error {
 	authenticated, err := b.authenticate(true)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to auth via headless mode: %w", err)
 	}
 
 	if authenticated {
@@ -50,7 +50,7 @@ func (b *Browser) Authenticate() error {
 	log.Logger.Debug("Headless auth didn't work. Attemping Browser auth..")
 	authenticated, err = b.authenticate(false)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to auth via headed mode: %w", err)
 	}
 
 	if authenticated {
@@ -88,7 +88,7 @@ func (b *Browser) authenticate(headless bool) (bool, error) {
 	// TODO: Error checking here..?
 	defer page.Close()
 
-	_, err = page.Goto(b.loginPath, playwright.PageGotoOptions{WaitUntil: playwright.WaitUntilStateDomcontentloaded})
+	_, err = page.Goto(b.loginPath, playwright.PageGotoOptions{WaitUntil: playwright.WaitUntilStateNetworkidle})
 	if err != nil {
 		return false, err
 	}
@@ -115,7 +115,7 @@ func (b *Browser) authenticate(headless bool) (bool, error) {
 		waitOpts := playwright.FrameWaitForURLOptions{Timeout: playwright.Float(5 * 60 * 1000)}
 		err := page.WaitForURL("http://localhost:2600/", waitOpts)
 		if err != nil {
-			return false, err
+			return false, fmt.Errorf("error while waiting for localhost url: %w", err)
 		}
 		return true, nil
 	}
@@ -128,7 +128,7 @@ func attemptAuth(page playwright.Page) error {
 		return nil
 	}
 
-	submitBtnLocator := page.Locator("#okta-signin-submit")
+	submitBtnLocator := page.Locator("input[value=\"Sign in\"]")
 	submitButtonCount, err := submitBtnLocator.Count()
 	if err != nil {
 		return err
@@ -140,21 +140,28 @@ func attemptAuth(page playwright.Page) error {
 	}
 
 	// Fill in Username and Password
-	usernameField := page.Locator("#okta-signin-username")
+	usernameField := page.Locator("input[name=\"identifier\"]")
 	err = usernameField.Fill(config.CurrentConfig.Username)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to fill in username field: %w", err)
 	}
-	passwordField := page.Locator("#okta-signin-password")
+	passwordField := page.Locator("input[name=\"credentials.passcode\"]")
 	err = passwordField.Fill(config.CurrentConfig.Password)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to fill in password field: %w", err)
 	}
 
 	// Click the submit button
 	err = submitBtnLocator.Click()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to click the submit button: %w", err)
+	}
+
+	// Check if there's a "Verify" form and automatically click it.
+	verifyBtnLocator := page.Locator("input[value=\"Verify\"]")
+	err = verifyBtnLocator.Click()
+	if err != nil {
+		return fmt.Errorf("failed to click the 'Verify' button: %w", err)
 	}
 
 	return nil
@@ -187,7 +194,7 @@ func (b *Browser) ensureBrowserContext(headless bool) error {
 
 	opts := playwright.BrowserTypeLaunchPersistentContextOptions{
 		Headless: &headless,
-		Channel:  playwright.String("chrome"),
+		// Channel:  playwright.String("chrome"),
 	}
 
 	browserCtx, err := b.playwright.Chromium.LaunchPersistentContext(config.CurrentConfig.ChromeUserDataDir, opts)
@@ -246,10 +253,11 @@ func AttemptAuthentication() {
 			log.Logger.Errorf("Error during authentication:", err.Error())
 		}
 
-		err = b.Close()
-		if err != nil {
-			log.Logger.Errorf("Error during browser closure", err.Error())
-		}
+		log.Logger.Info("Skipping browser closure!")
+		// err = b.Close()
+		// if err != nil {
+		// 	log.Logger.Errorf("Error during browser closure", err.Error())
+		// }
 	} else {
 		log.Logger.Debug("No credentials need refreshing at this time.")
 	}
