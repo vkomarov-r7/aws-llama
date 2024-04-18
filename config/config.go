@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -20,6 +21,7 @@ type Config struct {
 	ListenPort         int
 	Username           string `json:"username"`
 	Password           string `json:"password"`
+	StorageStatePath   string
 }
 
 func (c *Config) HasLogin() bool {
@@ -61,12 +63,17 @@ func loadConfigFromJSON() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	storageStatePath, err := getStorageStatePath()
+	if err != nil {
+		return nil, err
+	}
 
 	config := Config{
 		RootUrl:            rootUrl,
 		RenewWithinSeconds: 15 * 60, // 15 mins.
 		ChromeUserDataDir:  userDataDir,
 		ListenPort:         2600,
+		StorageStatePath:   storageStatePath,
 	}
 	if bytes != nil {
 		err = json.Unmarshal(bytes, &config)
@@ -90,4 +97,20 @@ func getChromeUserDataDir() (string, error) {
 		return "", err
 	}
 	return userdir, nil
+}
+
+func getStorageStatePath() (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+
+	storagePath := filepath.Join(homeDir, ".aws-llama-storage")
+	if _, err := os.Stat(storagePath); errors.Is(err, os.ErrNotExist) {
+		err = os.WriteFile(storagePath, []byte{'{', '}'}, 0600)
+		if err != nil {
+			return "", err
+		}
+	}
+	return storagePath, nil
 }

@@ -13,6 +13,7 @@ import (
 
 type Browser struct {
 	playwright     *playwright.Playwright
+	browser        playwright.Browser
 	browserContext playwright.BrowserContext
 	loginPath      string
 	// page           *playwright.Page
@@ -43,6 +44,7 @@ func (b *Browser) Authenticate() error {
 	}
 
 	if authenticated {
+		b.browserContext.StorageState(config.CurrentConfig.StorageStatePath)
 		log.Logger.Debug("Authentication via headless mode successful.")
 		return nil
 	}
@@ -54,6 +56,7 @@ func (b *Browser) Authenticate() error {
 	}
 
 	if authenticated {
+		b.browserContext.StorageState(config.CurrentConfig.StorageStatePath)
 		log.Logger.Debug("Authentication mode via browser successful.")
 		return nil
 	}
@@ -63,6 +66,10 @@ func (b *Browser) Authenticate() error {
 
 func (b *Browser) Close() error {
 	err := b.browserContext.Close()
+	if err != nil {
+		return err
+	}
+	err = b.browser.Close()
 	if err != nil {
 		return err
 	}
@@ -207,12 +214,19 @@ func (b *Browser) ensureBrowserContext(headless bool) error {
 		}
 	}
 
-	opts := playwright.BrowserTypeLaunchPersistentContextOptions{
+	browserLaunchOpts := playwright.BrowserTypeLaunchOptions{
 		Headless: &headless,
-		Channel:  playwright.String("chrome"),
 	}
+	browser, err := b.playwright.Chromium.Launch(browserLaunchOpts)
+	if err != nil {
+		return err
+	}
+	b.browser = browser
 
-	browserCtx, err := b.playwright.Chromium.LaunchPersistentContext(config.CurrentConfig.ChromeUserDataDir, opts)
+	contextOpts := playwright.BrowserNewContextOptions{
+		StorageStatePath: playwright.String(config.CurrentConfig.StorageStatePath),
+	}
+	browserCtx, err := browser.NewContext(contextOpts)
 	if err != nil {
 		return err
 	}
@@ -268,11 +282,11 @@ func AttemptAuthentication() {
 			log.Logger.Errorf("Error during authentication:", err.Error())
 		}
 
-		log.Logger.Info("Skipping browser closure!")
-		// err = b.Close()
-		// if err != nil {
-		// 	log.Logger.Errorf("Error during browser closure", err.Error())
-		// }
+		// log.Logger.Info("Skipping browser closure!")
+		err = b.Close()
+		if err != nil {
+			log.Logger.Errorf("Error during browser closure", err.Error())
+		}
 	} else {
 		log.Logger.Debug("No credentials need refreshing at this time.")
 	}
