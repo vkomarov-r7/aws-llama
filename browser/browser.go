@@ -183,6 +183,21 @@ func attemptAuth(page playwright.Page) error {
 		return fmt.Errorf("failed to click the 'Verify' button: %w", err)
 	}
 
+	// Check if there's an "Other Options" button and click it.
+	otherOptionsBtnLocator := page.Locator("a.other-options-link")
+	err = otherOptionsBtnLocator.Click()
+	if err != nil {
+		log.Logger.Info("Failed to find the 'Other Options' button. Continuing...")
+		return nil
+	}
+
+	yubikeyOptionLocator := page.GetByText("YubiKey passcode")
+	err = yubikeyOptionLocator.Click()
+	if err != nil {
+		log.Logger.Info("Failed to click the 'YubiKey passcode' option. Continuing...")
+		return nil
+	}
+
 	return nil
 }
 
@@ -216,6 +231,7 @@ func (b *Browser) ensureBrowserContext(headless bool) error {
 
 	browserLaunchOpts := playwright.BrowserTypeLaunchOptions{
 		Headless: &headless,
+		// Args:     []string{"--disable-webauthn"},
 	}
 	browser, err := b.playwright.Chromium.Launch(browserLaunchOpts)
 	if err != nil {
@@ -230,6 +246,10 @@ func (b *Browser) ensureBrowserContext(headless bool) error {
 	if err != nil {
 		return err
 	}
+	browserCtx.OnDialog(func(dialog playwright.Dialog) {
+		log.Logger.Info("Dialog detected: ", dialog.Message())
+		dialog.Dismiss()
+	})
 
 	b.browserContext = browserCtx
 	return nil

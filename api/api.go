@@ -52,6 +52,7 @@ func routeLogin(c *gin.Context) {
 	middleware, err := saml.MiddlewareForURL(metadataURLRaw)
 	if err != nil {
 		c.JSON(400, gin.H{"error": fmt.Sprintf("Failed to retrieve middleware for url: %s. %s", metadataURLRaw, err.Error())})
+		return
 	}
 	redirectURL, err := saml.MakeRedirectUrl(middleware, metadataURLRaw)
 	if err != nil {
